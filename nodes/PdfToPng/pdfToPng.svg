@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect x="8" y="4" width="36" height="48" rx="3" fill="#E53935" stroke="#B71C1C" stroke-width="2"/>
+  <text x="26" y="32" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="white" text-anchor="middle">PDF</text>
+  <path d="M32 34 L42 44" stroke="#333" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="44,40 56,52 48,52 44,56 40,52 32,52" fill="#333" stroke="none"/>
+  <rect x="36" y="40" width="24" height="20" rx="2" fill="#43A047" stroke="#2E7D32" stroke-width="2"/>
+  <text x="48" y="54" font-family="Arial,sans-serif" font-size="8" font-weight="bold" fill="white" text-anchor="middle">PNG</text>
+</svg>

@@ -1,0 +1,14 @@
+{
+	"node": "n8n-nodes-pdf-to-png.pdfToPng",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Core Nodes", "Data Transformation"],
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/nickcis/pdf-to-png-converter"
+			}
+		]
+	},
+	"alias": ["pdf", "png", "image", "convert", "pages"]
+}
