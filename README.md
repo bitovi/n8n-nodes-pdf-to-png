@@ -21,7 +21,7 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 1. Make sure to allow community nodes with `N8N_COMMUNITY_PACKAGES_ENABLED=true`
 2. Once logged in to your n8n web UI, go to `/settings/community-nodes`
-3. Type `n8n-nodes-pdf-to-png` and click install
+3. Type `@bitovi/n8n-nodes-pdf-to-png` and click install
 
 ## Operations
 
