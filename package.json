@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"description": "n8n community node to convert PDF pages to PNG images",
 	"license": "MIT",
-	"homepage": "",
+	"homepage": "https://github.com/bitovi/n8n-nodes-pdf-to-png",
 	"keywords": [
 		"n8n-community-node-package",
 		"pdf",
@@ -12,12 +12,12 @@
 		"image"
 	],
 	"author": {
-		"name": "",
-		"email": ""
+		"name": "manuel",
+		"email": "manuelpreston9@gmail.com"
 	},
 	"repository": {
 		"type": "git",
-		"url": ""
+		"url": "https://github.com/bitovi/n8n-nodes-pdf-to-png.git"
 	},
 	"scripts": {
 		"build": "n8n-node build",
