@@ -1,5 +1,5 @@
 {
-	"name": "n8n-nodes-pdf-to-png",
+	"name": "@bitovi/n8n-nodes-pdf-to-png",
 	"version": "0.1.0",
 	"description": "n8n community node to convert PDF pages to PNG images",
 	"license": "MIT",
