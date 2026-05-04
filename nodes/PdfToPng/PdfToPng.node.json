@@ -6,7 +6,7 @@
 	"resources": {
 		"primaryDocumentation": [
 			{
-				"url": "https://github.com/nickcis/pdf-to-png-converter"
+				"url": "https://github.com/bitovi/n8n-nodes-pdf-to-png"
 			}
 		]
 	},
