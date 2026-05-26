@@ -1,5 +1,5 @@
 # n8n-nodes-pdf-to-png
-
+(test)
 This is an n8n community node that lets you convert PDF files to PNG images in your n8n workflows.
 
 The PDF to PNG node converts each page of a PDF document into a separate PNG image. It works with PDF files passed as binary data through your workflow, outputting one item per page with configurable resolution.
