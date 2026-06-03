@@ -9,8 +9,4 @@ jobs:
     uses: bitovi/.github/.github/workflows/npm-stage-publish.yml@main
     permissions:
       contents: read
-      id-token: write    
-    with:
-      package-path: "."
-      node-version: "22.14.0"
-      environment: "npm"
+      id-token: write
