@@ -1,38 +1,16 @@
-name: Publish to npm
+name: Release
+ 
 on:
   release:
     types: [published]
-permissions:
-  contents: read
+ 
 jobs:
-  publish-npm:
-    runs-on: ubuntu-latest
+  stage:
+    uses: bitovi/.github/.github/workflows/npm-stage-publish.yml@main
     permissions:
       contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Update npm
-        run: npm install -g npm@latest
-      - name: Install dependencies
-        run: npm install
-      - name: Build
-        run: npm run build
-      - name: Verify package.json version matches release tag
-        run: |
-          ver="v$(node -p "require('./package.json').version")"
-          echo "Version in package.json: $ver"
-          echo "Version from release tag: ${{ github.event.release.tag_name }}"
-          if [ "$ver" != "${{ github.event.release.tag_name }}" ]; then
-            echo "Error: The package.json version does not match the release tag."
-            exit 1
-          fi
-          echo "Version check passed."
-      - name: Publish to npm
-        run: npm publish --access public
+      id-token: write    
+    with:
+      package-path: "."
+      node-version: "22.14.0"
+      environment: "npm"
