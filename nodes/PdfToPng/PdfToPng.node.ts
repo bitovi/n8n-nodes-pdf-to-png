@@ -13,19 +13,7 @@ interface PdfWorkerGlobal {
 	WorkerMessageHandler: unknown;
 }
 
-/**
- * Works around pdf.js's "The API version X does not match the Worker version Y" error.
- *
- * In Node, pdf.js always runs its worker on the main thread and obtains the worker code from the
- * process-wide `globalThis.pdfjsWorker`. That global is assigned as a side effect by whichever
- * `pdf.worker.mjs` was imported last (see pdfjs-dist's pdf.worker.mjs). n8n loads its own bundled
- * pdfjs worker, so by the time this node runs the global points at n8n's pdfjs version while
- * pdf-to-png-converter's API is a different version — hence the mismatch.
- *
- * Loads the worker that matches the converter's own API copy, once, and caches its message handler.
- * Importing the worker also mutates `globalThis.pdfjsWorker`, so we snapshot and restore the global
- * here — we only swap our worker in for the duration of an actual conversion (see `execute`).
- */
+// Loads and caches the pdfjs worker that matches the converter's own pdfjs copy.
 let matchingWorker: PdfWorkerGlobal | undefined;
 async function loadMatchingWorker(): Promise<PdfWorkerGlobal> {
 	if (matchingWorker) return matchingWorker;
@@ -36,6 +24,7 @@ async function loadMatchingWorker(): Promise<PdfWorkerGlobal> {
 		paths: [converterEntry],
 	});
 
+	// Importing the worker mutates globalThis.pdfjsWorker, so snapshot and restore it.
 	const g = globalThis as { pdfjsWorker?: PdfWorkerGlobal };
 	const prev = g.pdfjsWorker;
 	const mod = (await import(pathToFileURL(workerPath).href)) as PdfWorkerGlobal;
@@ -100,8 +89,7 @@ export class PdfToPng implements INodeType {
 		const items = this.getInputData();
 		const results: INodeExecutionData[] = [];
 
-		// Point pdf.js at the worker matching the converter's API for the duration of this run,
-		// then restore whatever the host (e.g. n8n core) had on the global. See loadMatchingWorker.
+		// Swap in the matching pdfjs worker for this run, restoring the previous one afterward.
 		const matching = await loadMatchingWorker();
 		const g = globalThis as { pdfjsWorker?: PdfWorkerGlobal };
 		const previousWorker = g.pdfjsWorker;
