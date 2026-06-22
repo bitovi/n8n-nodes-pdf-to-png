@@ -4,8 +4,35 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 import { pdfToPng } from 'pdf-to-png-converter';
+
+interface PdfWorkerGlobal {
+	WorkerMessageHandler: unknown;
+}
+
+// Loads and caches the pdfjs worker that matches the converter's own pdfjs copy.
+let matchingWorker: PdfWorkerGlobal | undefined;
+async function loadMatchingWorker(): Promise<PdfWorkerGlobal> {
+	if (matchingWorker) return matchingWorker;
+
+	const req = createRequire(__filename);
+	const converterEntry = req.resolve('pdf-to-png-converter');
+	const workerPath = req.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs', {
+		paths: [converterEntry],
+	});
+
+	// Importing the worker mutates globalThis.pdfjsWorker, so snapshot and restore it.
+	const g = globalThis as { pdfjsWorker?: PdfWorkerGlobal };
+	const prev = g.pdfjsWorker;
+	const mod = (await import(pathToFileURL(workerPath).href)) as PdfWorkerGlobal;
+	g.pdfjsWorker = prev;
+
+	matchingWorker = { WorkerMessageHandler: mod.WorkerMessageHandler };
+	return matchingWorker;
+}
 
 export class PdfToPng implements INodeType {
 	description: INodeTypeDescription = {
@@ -62,83 +89,93 @@ export class PdfToPng implements INodeType {
 		const items = this.getInputData();
 		const results: INodeExecutionData[] = [];
 
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-			try {
-				const binaryPropertyName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
-				const viewportScale = this.getNodeParameter('viewportScale', itemIndex, 2.0) as number;
-				const outputPropertyName = this.getNodeParameter('outputPropertyName', itemIndex, 'data') as string;
-				const pageRange = this.getNodeParameter('pageRange', itemIndex, '') as string;
+		// Swap in the matching pdfjs worker for this run, restoring the previous one afterward.
+		const matching = await loadMatchingWorker();
+		const g = globalThis as { pdfjsWorker?: PdfWorkerGlobal };
+		const previousWorker = g.pdfjsWorker;
+		g.pdfjsWorker = matching;
 
-				const binaryData = this.helpers.assertBinaryData(itemIndex, binaryPropertyName);
-				const pdfBuffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+		try {
+			for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+				try {
+					const binaryPropertyName = this.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
+					const viewportScale = this.getNodeParameter('viewportScale', itemIndex, 2.0) as number;
+					const outputPropertyName = this.getNodeParameter('outputPropertyName', itemIndex, 'data') as string;
+					const pageRange = this.getNodeParameter('pageRange', itemIndex, '') as string;
 
-				const options: { viewportScale: number; pagesToProcess?: number[] } = {
-					viewportScale,
-				};
+					const binaryData = this.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+					const pdfBuffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
 
-				// Parse page range if provided
-				if (pageRange.trim()) {
-					const pages: number[] = [];
-					const parts = pageRange.split(',');
-					for (const part of parts) {
-						const trimmed = part.trim();
-						if (trimmed.includes('-')) {
-							const [start, end] = trimmed.split('-').map(Number);
-							if (!isNaN(start) && !isNaN(end)) {
-								for (let i = start; i <= end; i++) {
-									pages.push(i);
+					const options: { viewportScale: number; pagesToProcess?: number[] } = {
+						viewportScale,
+					};
+
+					// Parse page range if provided
+					if (pageRange.trim()) {
+						const pages: number[] = [];
+						const parts = pageRange.split(',');
+						for (const part of parts) {
+							const trimmed = part.trim();
+							if (trimmed.includes('-')) {
+								const [start, end] = trimmed.split('-').map(Number);
+								if (!isNaN(start) && !isNaN(end)) {
+									for (let i = start; i <= end; i++) {
+										pages.push(i);
+									}
+								}
+							} else {
+								const num = Number(trimmed);
+								if (!isNaN(num)) {
+									pages.push(num);
 								}
 							}
-						} else {
-							const num = Number(trimmed);
-							if (!isNaN(num)) {
-								pages.push(num);
-							}
+						}
+						if (pages.length > 0) {
+							options.pagesToProcess = pages;
 						}
 					}
-					if (pages.length > 0) {
-						options.pagesToProcess = pages;
+
+					const pngPages = await pdfToPng(pdfBuffer, options);
+
+					const baseName = binaryData.fileName?.replace(/\.pdf$/i, '') || 'page';
+
+					for (const page of pngPages) {
+						const content = page.content ?? Buffer.alloc(0);
+						const binary = await this.helpers.prepareBinaryData(
+							Buffer.from(content),
+							`${baseName}_${page.pageNumber}.png`,
+							'image/png',
+						);
+
+						results.push({
+							json: {
+								pageNumber: page.pageNumber,
+								width: page.width,
+								height: page.height,
+								totalPages: pngPages.length,
+								sourceFile: binaryData.fileName || '',
+							},
+							binary: {
+								[outputPropertyName]: binary,
+							},
+							pairedItem: { item: itemIndex },
+						});
+					}
+				} catch (error) {
+					if (this.continueOnFail()) {
+						results.push({
+							json: { error: (error as Error).message },
+							pairedItem: { item: itemIndex },
+						});
+					} else {
+						throw new NodeOperationError(this.getNode(), error as Error, {
+							itemIndex,
+						});
 					}
 				}
-
-				const pngPages = await pdfToPng(pdfBuffer, options);
-
-				const baseName = binaryData.fileName?.replace(/\.pdf$/i, '') || 'page';
-
-				for (const page of pngPages) {
-					const content = page.content ?? Buffer.alloc(0);
-					const binary = await this.helpers.prepareBinaryData(
-						Buffer.from(content),
-						`${baseName}_${page.pageNumber}.png`,
-						'image/png',
-					);
-
-					results.push({
-						json: {
-							pageNumber: page.pageNumber,
-							width: page.width,
-							height: page.height,
-							totalPages: pngPages.length,
-							sourceFile: binaryData.fileName || '',
-						},
-						binary: {
-							[outputPropertyName]: binary,
-						},
-						pairedItem: { item: itemIndex },
-					});
-				}
-			} catch (error) {
-				if (this.continueOnFail()) {
-					results.push({
-						json: { error: (error as Error).message },
-						pairedItem: { item: itemIndex },
-					});
-				} else {
-					throw new NodeOperationError(this.getNode(), error as Error, {
-						itemIndex,
-					});
-				}
 			}
+		} finally {
+			g.pdfjsWorker = previousWorker;
 		}
 
 		return [results];

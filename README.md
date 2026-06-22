@@ -23,6 +23,8 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 2. Once logged in to your n8n web UI, go to `/settings/community-nodes`
 3. Type `@bitovi/n8n-nodes-pdf-to-png` and click install
 
+> **After installing or upgrading, restart n8n.** pdf.js caches its PDF worker per process, so a fresh process is needed to pick up the node's worker correctly. See [Troubleshooting](#troubleshooting).
+
 ## Operations
 
 The PDF to PNG node converts PDF pages to PNG images with the following parameters:
@@ -70,12 +72,24 @@ This node uses [pdf-to-png-converter](https://www.npmjs.com/package/pdf-to-png-c
 
 The node expects the PDF file as binary data in the input. Any node that outputs a PDF (HTTP Request, Read Binary File, Gmail attachments, Google Drive, etc.) will work. The node outputs one item per page, each with a PNG binary attached.
 
+## Troubleshooting
+
+**`The API version "X" does not match the Worker version "Y"`**
+
+pdf.js (used internally) runs its worker on the main thread and reads it from a process-wide global that whatever loaded a pdf.js worker last "wins" — including n8n core's own bundled pdf.js. This node works around that, but pdf.js **caches the worker per process on first use**. If an older/incompatible version of the node ran in the same process first, the cache is already poisoned and an in-place upgrade won't clear it.
+
+**Fix: restart n8n** after installing or upgrading the node. A fresh process resolves it.
+
 ## Resources
 
 * [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
 * [pdf-to-png-converter](https://www.npmjs.com/package/pdf-to-png-converter) — the underlying conversion library
 
 ## Version History
+
+### v0.1.3
+- Fix `The API version does not match the Worker version` error caused by pdf.js worker-version conflicts with n8n's bundled pdf.js
+- Note: restart n8n after installing/upgrading (see [Troubleshooting](#troubleshooting))
 
 ### v0.1.0
 - Initial release

@@ -10,3 +10,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    with:
+      # Pre-release GitHub Releases publish under the "beta" dist-tag; normal releases go to latest.
+      dist-tag: ${{ github.event.release.prerelease && 'beta' || '' }}
